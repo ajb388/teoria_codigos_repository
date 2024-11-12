@@ -11,6 +11,9 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 from tkinter import filedialog, messagebox
 
+# Variables globales
+ruta_archivo = ""
+
 def generate_certificate(self):
 # Método para generar certificados
     pass
@@ -416,11 +419,14 @@ def salir_app():
 
 def seleccionar_archivos():
     # Abre un diálogo para seleccionar uno o varios archivos
-    archivos = filedialog.askopenfilenames(title="Selecciona uno o varios archivos")
+    ruta_archivo = filedialog.askopenfilename(
+                    title="Seleccionar archivo",
+                    filetypes=[("Todos los archivos", ".*")]
+    )
     
     # Si se seleccionan archivos, muestra sus nombres
-    if archivos:
-        mensaje = "\n".join(archivos)
+    if ruta_archivo:
+        mensaje = "\n".join(ruta_archivo)
         messagebox.showinfo("Archivos Seleccionados", f"Has seleccionado:\n{mensaje}")
     else:
         messagebox.showinfo("No se seleccionaron archivos", "No se ha seleccionado ningún archivo.")
