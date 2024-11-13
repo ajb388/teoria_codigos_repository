@@ -12,23 +12,86 @@ from Crypto.Random import get_random_bytes
 from tkinter import filedialog, messagebox
 
 # Variables globales
+lista_claves = {}
+ruta_salida = ""
+ruta_claves = ""
 ruta_archivo = ""
 
-def generate_certificate(self):
-# Método para generar certificados
-    pass
+def seleccionar_archivos():
+    # Abre un diálogo para seleccionar uno o varios archivos
+    ruta_archivo = filedialog.askopenfilename(
+                    title="Seleccionar archivo",
+                    filetypes=[("Todos los archivos", ".*")]
+    )
+    
+    # Si se seleccionan archivos, muestra sus nombres
+    if ruta_archivo:
+        messagebox.showinfo("Archivos Seleccionados", f"Has seleccionado:\n{ruta_archivo}")
+    else:
+        messagebox.showinfo("No se seleccionaron archivos", "No se ha seleccionado ningún archivo.")
 
-    # Función para leer el archivo y devolver su contenido
 def leer_archivo(ruta_archivo):
     with open(ruta_archivo, 'rb') as f:
         return f.read()
 
-# Función para escribir datos en un archivo
+def leer_claves(ruta_claves):
+    claves_leidas = {}
+    try:
+        with open(ruta_claves,'rb') as f:
+                while True:
+                    len_nombre = f.read(1)
+                    if not len_nombre:
+                        break
+                    len_nombre = int.from_bytes(len_nombre,'big')
+                    nombre = f.read(len_nombre).decode('utf-8')
+                
+                    len_clave = f.read(1)
+                    if not len_clave:
+                        break
+                    len_clave = int.from_bytes(len_clave,'big')
+                    clave = f.read(len_clave)
+
+                    len_extension = f.read(1)
+                    if not len_extension:
+                        break
+                    len_extension = int.from_bytes(len_extension,'big')
+                    extension = f.read(len_extension).decode('utf-8')
+                
+                    claves_leidas[nombre] = (clave, extension)
+                return claves_leidas
+    except FileNotFoundError:
+        return claves_leidas
+
+def generar_clave(clave_tamaño):
+    if clave_tamaño == '1':
+        clave = get_random_bytes(32)
+    elif clave_tamaño == '2':
+        clave = get_random_bytes(24)
+    elif clave_tamaño == '3':
+        clave = get_random_bytes(16)
+    else:
+        print("Opción no válida. Creando clave por defecto de 32 bytes")
+        clave = get_random_bytes(32)
+    return clave # AES-256 usa una clave de 256 bits (32 bytes)  
+
 def escribir_archivo(ruta_archivo, datos):
     with open(ruta_archivo, 'wb') as f:
         f.write(datos)
 
 def cifrar_archivo(ruta_archivo, clave_tamaño, ruta_salida, ruta_claves):
+    ruta_archivo = filedialog.askopenfilename(
+        title="Seleccionar archivo",
+        filetypes=[("Todos los archivos", ".*")]
+    )
+    
+    if ruta_archivo:
+        print(f"Has seleccionado: {ruta_archivo}")
+        clave = tk.simpledialog.askstring("Tamaño de clave", "Introduce tamaño de clave: (1) 32 bytes, (2) 24 bytes, (3) 16 bytes")
+        nombre_archivo, extension = os.path.splitext(os.path.basename(ruta_archivo))
+        ruta_salida = filedialog.asksaveasfilename(defaultextension=".bin",
+                                                    initialfile=nombre_archivo,
+                                                    filetypes=[("Archivos BIN", "*.bin"),("Todos los archivos", "*.*")])
+
     datos = leer_archivo(ruta_archivo)  # Leer el archivo a cifrar
     clave = generar_clave(clave_tamaño)
     print("Clave generada:", clave)
@@ -84,18 +147,6 @@ def descifrar_archivo(ruta_archivo, ruta_claves):
     except ValueError:
         print("Error: el padding es incorrecto o los datos están corruptos.")
 
-def generar_clave(clave_tamaño):
-    if clave_tamaño == '1':
-        clave = get_random_bytes(32)
-    elif clave_tamaño == '2':
-        clave = get_random_bytes(24)
-    elif clave_tamaño == '3':
-        clave = get_random_bytes(16)
-    else:
-        print("Opción no válida. Creando clave por defecto de 32 bytes")
-        clave = get_random_bytes(32)
-    return clave # AES-256 usa una clave de 256 bits (32 bytes)    
-
 def guardar_clave(nombre, clave, extension, ruta_claves):
     lista_claves = leer_claves(ruta_claves)
     if nombre in lista_claves:
@@ -124,34 +175,6 @@ def guardar_clave(nombre, clave, extension, ruta_claves):
             extension_bytes = extension.encode('utf-8')
             f.write(len(extension_bytes).to_bytes(1,'big'))
             f.write(extension_bytes)
-            
-def leer_claves(ruta_claves):
-    claves_leidas = {}
-    try:
-        with open(ruta_claves,'rb') as f:
-                while True:
-                    len_nombre = f.read(1)
-                    if not len_nombre:
-                        break
-                    len_nombre = int.from_bytes(len_nombre,'big')
-                    nombre = f.read(len_nombre).decode('utf-8')
-                
-                    len_clave = f.read(1)
-                    if not len_clave:
-                        break
-                    len_clave = int.from_bytes(len_clave,'big')
-                    clave = f.read(len_clave)
-
-                    len_extension = f.read(1)
-                    if not len_extension:
-                        break
-                    len_extension = int.from_bytes(len_extension,'big')
-                    extension = f.read(len_extension).decode('utf-8')
-                
-                    claves_leidas[nombre] = (clave, extension)
-                return claves_leidas
-    except FileNotFoundError:
-        return claves_leidas
 
 def crear_kyber(ruta_archivo_cifrado, tamanio):
     #Dependiendo de la opción elegida, se creará un kyber de un tamaño de clave o de otro
@@ -417,20 +440,6 @@ def encriptar_claves():
 def salir_app():
     ventana.quit()
 
-def seleccionar_archivos():
-    # Abre un diálogo para seleccionar uno o varios archivos
-    ruta_archivo = filedialog.askopenfilename(
-                    title="Seleccionar archivo",
-                    filetypes=[("Todos los archivos", ".*")]
-    )
-    
-    # Si se seleccionan archivos, muestra sus nombres
-    if ruta_archivo:
-        mensaje = "\n".join(ruta_archivo)
-        messagebox.showinfo("Archivos Seleccionados", f"Has seleccionado:\n{mensaje}")
-    else:
-        messagebox.showinfo("No se seleccionaron archivos", "No se ha seleccionado ningún archivo.")
-
 ventana = tk.Tk()
 ventana.title("Encriptación de PDFs")
 ventana.geometry("600x400")
@@ -439,18 +448,17 @@ ventana.geometry("600x400")
 menu_principal = tk.Menu(ventana)
 ventana.config(menu=menu_principal)
 
-# Crear un submenú para "Archivo"
-menu_archivo = tk.Menu(menu_principal, tearoff=0)
-menu_archivo.add_command(label="Cifrar", command=cifrar_archivo)   # Vincula a abrir_archivo
-menu_archivo.add_command(label="Descifrar", command=descifrar_archivo)  # Vincula a guardar_archivo
-menu_archivo.add_separator()  # Línea separadora
-menu_archivo.add_command(label="Salir", command=salir_app)    # Vincula a salir_app
+boton_cifrar = tk.Button(ventana, text="Cifrar Archivo", command=cifrar_archivo)
+boton_cifrar.pack(expand=True)
+
+boton_descifrar = tk.Button(ventana, text="Descifrar Archivo", command=descifrar_archivo)
+boton_descifrar.pack(expand=True)
 
 boton_seleccionar = tk.Button(ventana, text="Seleccionar Archivos", command=seleccionar_archivos)
 boton_seleccionar.pack(expand=True)
 
-# Añadir el submenú "Archivo" al menú principal
-menu_principal.add_cascade(label="Archivo", menu=menu_archivo)
+boton_salir = tk.Button(ventana, text="Salir de la aplicación", command=salir_app)
+boton_salir.pack(expand=True)
 
 # Iniciar el loop de la aplicación
 ventana.mainloop()
