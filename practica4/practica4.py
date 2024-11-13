@@ -13,12 +13,14 @@ from tkinter import filedialog, messagebox
 
 # Variables globales
 lista_claves = {}
+ruta_archivo = ""
 ruta_salida = ""
 ruta_claves = ""
 ruta_archivo = ""
 
 def seleccionar_archivos():
     # Abre un diálogo para seleccionar uno o varios archivos
+    global ruta_archivo
     ruta_archivo = filedialog.askopenfilename(
                     title="Seleccionar archivo",
                     filetypes=[("Todos los archivos", ".*")]
@@ -78,15 +80,11 @@ def escribir_archivo(ruta_archivo, datos):
     with open(ruta_archivo, 'wb') as f:
         f.write(datos)
 
-def cifrar_archivo(ruta_archivo, clave_tamaño, ruta_salida, ruta_claves):
-    ruta_archivo = filedialog.askopenfilename(
-        title="Seleccionar archivo",
-        filetypes=[("Todos los archivos", ".*")]
-    )
+def cifrar_archivo():
     
     if ruta_archivo:
         print(f"Has seleccionado: {ruta_archivo}")
-        clave = tk.simpledialog.askstring("Tamaño de clave", "Introduce tamaño de clave: (1) 32 bytes, (2) 24 bytes, (3) 16 bytes")
+        clave_tamaño = tk.simpledialog.askstring("Tamaño de clave", "Introduce tamaño de clave: (1) 32 bytes, (2) 24 bytes, (3) 16 bytes")
         nombre_archivo, extension = os.path.splitext(os.path.basename(ruta_archivo))
         ruta_salida = filedialog.asksaveasfilename(defaultextension=".bin",
                                                     initialfile=nombre_archivo,
@@ -111,10 +109,11 @@ def cifrar_archivo(ruta_archivo, clave_tamaño, ruta_salida, ruta_claves):
     with open(ruta_salida, 'wb') as f:
         f.write(iv)           # Guardar el IV (16 bytes)
         f.write(ciphertext)    # Guardar el texto cifrado
-    guardar_clave(nombre_archivo, clave, extension, ruta_claves)
+    global ruta_claves
+    guardar_clave(nombre_archivo, clave, extension)
     print(f"Archivo cifrado guardado en {ruta_salida}")       
 
-def descifrar_archivo(ruta_archivo, ruta_claves):
+def descifrar_archivo():
     lista_claves = leer_claves(ruta_claves)
     with open(ruta_archivo, 'rb') as f:
         iv = f.read(16)        # Leer el IV (16 bytes)
@@ -147,7 +146,8 @@ def descifrar_archivo(ruta_archivo, ruta_claves):
     except ValueError:
         print("Error: el padding es incorrecto o los datos están corruptos.")
 
-def guardar_clave(nombre, clave, extension, ruta_claves):
+def guardar_clave(nombre, clave, extension):
+    global lista_claves
     lista_claves = leer_claves(ruta_claves)
     if nombre in lista_claves:
         lista_claves[nombre] = (clave, extension)
@@ -352,7 +352,7 @@ def crear_RSA(ruta_archivo_cifrado, clave_tamaño):
         f.write(public_key)
 
 def habilitar_claves(ruta_archivo_cifrado):
-    print("Necesitamos que nos facilite la clave privada para desencriptar el archivo de claves")
+    messagebox.showinfo("Información", "Necesitamos que nos facilite la clave privada para desencriptar el archivo de claves")
     while True:
         root = tk.Tk()
         root.withdraw()  # Oculta la ventana principal de Tkinter
@@ -361,7 +361,7 @@ def habilitar_claves(ruta_archivo_cifrado):
                         filetypes=[("Todos los archivos", "*.pem")] #Seleccionamos el archivo clave privada
                     )
         if not ruta_archivo:
-            print("Cancelando proceso...")
+            messagebox.showinfo("Cancelación", "Cancelando proceso...")
             return False
         else:    
             try:
@@ -380,18 +380,14 @@ def habilitar_claves(ruta_archivo_cifrado):
             
                 return True
             except (TypeError, ValueError) as e:
-                print("Este archivo no corresponde con una clave privada o quizás el archivo de claves no lo requiera, vuelva a intentarlo")
+                messagebox.showerror("Error", "Este archivo no corresponde con una clave privada o quizás el archivo de claves no lo requiera, vuelva a intentarlo")
 
 def encriptar_claves():
 
     while True:
-        print("¿Desea crear un nuevo par de claves pública y privada, o desea utilizar una clave pública propia?")
-        print("1. Crear nuevas")
-        print("2. Utilizar mi clave")
-        print("3. Volver")
-        opcion = input("Selecciona una opción: ")
+        opcion = tk.simpledialog.askstring("Opciones", "¿Desea crear un nuevo par de claves pública y privada, o desea utilizar una clave pública propia?\n1. Crear nuevas\n2. Utilizar mi clave\n3. Volver")
         if opcion == '1':
-            tamanio = input("Seleccione el tamaño de clave RSA: (1) 2048 o (2) 4096:")
+            tamanio = tk.simpledialog.askstring("Tamaño de clave RSA", "Seleccione el tamaño de clave RSA: (1) 2048 o (2) 4096:")
 
             ruta_archivo_cifrado = filedialog.asksaveasfilename(defaultextension=".bin",
                                                         initialfile="public_rsa",
@@ -399,14 +395,14 @@ def encriptar_claves():
             crear_RSA(ruta_archivo_cifrado, tamanio) #Creamos las claves pública y privada en el mismo directorio que el archivo claves.bin
 
         elif opcion == '2':
-            print("Necesitamos que nos facilite el archivo de claves")
+            messagebox.showinfo("Información", "Necesitamos que nos facilite el archivo de claves")
             ruta_archivo_cifrado = filedialog.askopenfilename(
                 title="Seleccionar archivo de claves",
                 filetypes=[("Todos los archivos", "*.bin")]
             )
             root = tk.Tk()
             root.withdraw()  # Oculta la ventana principal de Tkinter
-            print("Necesitamos que nos facilite la clave publica para encriptar el archivo de claves")
+            messagebox.showinfo("Información", "Necesitamos que nos facilite la clave publica para encriptar el archivo de claves")
             ruta_archivo = filedialog.askopenfilename(
                     title="Seleccionar archivo",
                     filetypes=[("Todos los archivos", "*.pem")] #Seleccionamos el archivo clave publica
@@ -416,7 +412,7 @@ def encriptar_claves():
                     with open(ruta_archivo, "rb") as f:
                         public_key = RSA.import_key(f.read()) #Leemos su contenido y lo importamos como clave RSA
                     if public_key.has_private():
-                        print("Esta clave publica no es valida o puede no ser una clave publica, intentelo de nuevo")
+                        messagebox.showerror("Error", "Esta clave publica no es valida o puede no ser una clave publica, intentelo de nuevo")
                     else:
                         cipher_rsa = PKCS1_OAEP.new(public_key)
             
@@ -429,16 +425,39 @@ def encriptar_claves():
                             f.write(encrypted_data)
                         break
                 except ValueError:
-                    print("Esta clave está corrupta, intentelo de nuevo")
+                    messagebox.showerror("Error", "Esta clave está corrupta, intentelo de nuevo")
             else:
-                print("No ha seleccionado ningún archivo")
+                messagebox.showinfo("No se seleccionó ningún archivo", "No se ha seleccionado ningún archivo.")
         elif opcion == '3':
             break
         else:
-            print("Opción no válida. Inténtalo de nuevo.")
+            messagebox.showerror("Error", "Opción no válida. Inténtalo de nuevo.")
 
 def salir_app():
     ventana.quit()
+
+def cargar_claves():
+    global ruta_archivo            
+    if ruta_archivo:
+        global ruta_claves
+        ruta_claves = ruta_archivo
+        result = tk.simpledialog.askstring("Seleccionar método", "¿Este archivo está encriptado con (1) RSA, (2) Kyber o nada?\nSeleccione 1 (RSA), 2 (Kyber) o (3) nada")
+        if result == '1':
+            correcto = habilitar_claves(ruta_claves)
+            if correcto == False:
+                ruta_claves = ""
+        elif result == '2':
+            correcto = desencriptar_kyber(ruta_claves)
+            if correcto == False:
+                ruta_claves = ""
+        else:
+            messagebox.showinfo("Información", "No se seleccionó ningún archivo. Crearemos un archivo de claves nuevo...")
+            ruta_claves = filedialog.asksaveasfilename(defaultextension=".bin",
+                                                        initialfile="claves",
+                                                        filetypes=[("Archivos BIN", "*.bin"),("Todos los archivos", "*.*")])
+            if ruta_claves:
+                with open(ruta_claves, 'wb') as f:
+                    pass
 
 ventana = tk.Tk()
 ventana.title("Encriptación de PDFs")
@@ -448,14 +467,17 @@ ventana.geometry("600x400")
 menu_principal = tk.Menu(ventana)
 ventana.config(menu=menu_principal)
 
+boton_seleccionar = tk.Button(ventana, text="Seleccionar Archivos", command=seleccionar_archivos)
+boton_seleccionar.pack(expand=True)
+
+boton_cifrar = tk.Button(ventana, text="Archivo de claves", command=cargar_claves)
+boton_cifrar.pack(expand=True)
+
 boton_cifrar = tk.Button(ventana, text="Cifrar Archivo", command=cifrar_archivo)
 boton_cifrar.pack(expand=True)
 
 boton_descifrar = tk.Button(ventana, text="Descifrar Archivo", command=descifrar_archivo)
 boton_descifrar.pack(expand=True)
-
-boton_seleccionar = tk.Button(ventana, text="Seleccionar Archivos", command=seleccionar_archivos)
-boton_seleccionar.pack(expand=True)
 
 boton_salir = tk.Button(ventana, text="Salir de la aplicación", command=salir_app)
 boton_salir.pack(expand=True)
