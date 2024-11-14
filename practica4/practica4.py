@@ -21,6 +21,9 @@ ruta_archivo = ""
 usuario = ""
 contrasena = ""
 
+def salir_app():
+    ventana.quit()
+
 def seleccionar_archivos():
     # Abre un diálogo para seleccionar uno o varios archivos
     global ruta_archivo
@@ -67,71 +70,58 @@ def leer_claves(ruta_claves):
     except FileNotFoundError:
         return claves_leidas
 
-def generar_clave(clave_tamaño):
-    if clave_tamaño == '1':
-        clave = get_random_bytes(32)
-    elif clave_tamaño == '2':
-        clave = get_random_bytes(24)
-    elif clave_tamaño == '3':
-        clave = get_random_bytes(16)
-    else:
-        print("Opción no válida. Creando clave por defecto de 32 bytes")
-        clave = get_random_bytes(32)
-    return clave # AES-256 usa una clave de 256 bits (32 bytes)  
-
 def escribir_archivo(ruta_archivo, datos):
     with open(ruta_archivo, 'wb') as f:
         f.write(datos)
 
 def cifrar_archivo():
     
-    if ruta_archivo:
-        print(f"Has seleccionado: {ruta_archivo}")
-        clave_tamaño = tk.simpledialog.askstring("Tamaño de clave", "Introduce tamaño de clave: (1) 32 bytes, (2) 24 bytes, (3) 16 bytes")
-        nombre_archivo, extension = os.path.splitext(os.path.basename(ruta_archivo))
-        ruta_salida = filedialog.asksaveasfilename(defaultextension=".bin",
-                                                    initialfile=nombre_archivo,
-                                                    filetypes=[("Archivos BIN", "*.bin"),("Todos los archivos", "*.*")])
-
     datos = leer_archivo(ruta_archivo)  # Leer el archivo a cifrar
-    clave = generar_clave(clave_tamaño)
-    print("Clave generada:", clave)
+    clave = get_random_bytes(32)
     # Crear un cifrador AES en modo CBC
     cipher = AES.new(clave, AES.MODE_CBC)
     iv = cipher.iv  # Inicializar el vector de inicialización (IV)
+    print(iv)
 
     # Añadir padding (relleno) a los datos para que sean múltiplos del tamaño de bloque (16 bytes)
     datos_padded = pad(datos, AES.block_size)
 
     # Cifrar los datos
     ciphertext = cipher.encrypt(datos_padded)
+    print(ciphertext)
 
     nombre_archivo, extension = os.path.splitext(os.path.basename(ruta_archivo))
 
+    user_directory = os.path.join("practica4", usuario)
+    ruta_salida = os.path.join(user_directory, f"{nombre_archivo}_cifrado{extension}")
     # Guardar el IV y el texto cifrado en el archivo de salida
     with open(ruta_salida, 'wb') as f:
         f.write(iv)           # Guardar el IV (16 bytes)
         f.write(ciphertext)    # Guardar el texto cifrado
     guardar_clave(nombre_archivo, clave, extension)
-    print(f"Archivo cifrado guardado en {ruta_salida}")       
 
 def descifrar_archivo():
     global lista_claves
     lista_claves = leer_claves(ruta_claves)
     with open(ruta_archivo, 'rb') as f:
+
         iv = f.read(16)        # Leer el IV (16 bytes)
+        print(iv)
         ciphertext = f.read()  # Leer el texto cifrado restante
+        print(ciphertext)
 
     nombre_archivo, extension = os.path.splitext(os.path.basename(ruta_archivo))
+
+    print(f"Descifrando '{nombre_archivo}'...")
+    print(f"Usando el archivo de claves '{ruta_claves}'...")
+    print(f"Usando extension '{extension}'...")
     
     if nombre_archivo in lista_claves:
         clave = lista_claves[nombre_archivo][0]
         extension = lista_claves[nombre_archivo][1]
-        print(f"La clave para '{nombre_archivo}' es : {clave}")
-
-    ruta_salida = filedialog.asksaveasfilename(defaultextension=extension,
-                                            initialfile=nombre_archivo,
-                                            filetypes=[("Todos los archivos", "*.*")])
+    
+    user_directory = os.path.join("practica4", usuario)
+    ruta_salida = os.path.join(user_directory, f"{nombre_archivo}_descifrado{extension}")
     
     # Crear un descifrador AES en modo CBC con el mismo IV
     cipher = AES.new(clave, AES.MODE_CBC, iv=iv)
@@ -180,23 +170,19 @@ def guardar_clave(nombre, clave, extension):
             f.write(len(extension_bytes).to_bytes(1,'big'))
             f.write(extension_bytes)
 
-def crear_kyber(ruta_archivo_cifrado, tamanio):
-    #Dependiendo de la opción elegida, se creará un kyber de un tamaño de clave o de otro
-    if tamanio == '1':
-        key = Kyber512
-    elif tamanio == '2':
-        key = Kyber768
-    elif tamanio == '3':
-        key = Kyber1024
-    else:
-        key = Kyber512
-        print("Establecido tamaño por defecto de 512")
+def crear_kyber():
+
+    key=Kyber512
     #Guardamos las claves generadas publica y privada tal y como lo devuelve la funcion keygen()
     public_key, private_key = key.keygen()
-    #Recortamos la dirección final para poder colocar en ese directorio las rutas de los futuros archivos .pem
-    ruta_cortada = os.path.dirname(ruta_archivo_cifrado)
-    ruta_privada = os.path.normpath(os.path.join(ruta_cortada, "private_kyber.pem"))
-    ruta_publica = os.path.normpath(os.path.join(ruta_cortada, "public_kyber.pem"))
+
+    user_directory = os.path.join("practica4", usuario)
+    ruta_privada = os.path.normpath(os.path.join(user_directory, "private_kyber.pem"))
+    ruta_publica = os.path.normpath(os.path.join(user_directory, "public_kyber.pem"))
+
+    if os.path.exists(ruta_privada) and os.path.exists(ruta_publica):
+        messagebox.showerror("Error", "Las claves pública y privada ya existen.")
+        return
     #Colocamos en el formato de base64 para poder crear el archivo pem de forma correcta 
     with open(ruta_privada, "wb") as f:
         f.write(b"----BEGIN PRIVATE KEY----\n")
@@ -209,72 +195,52 @@ def crear_kyber(ruta_archivo_cifrado, tamanio):
 
 def encriptar_kyber():
     while True:
-        print("¿Desea crear un nuevo par de claves pública y privada, o desea utilizar una clave pública propia?")
-        print("1. Crear nuevas")
-        print("2. Utilizar mi clave")
-        print("3. Volver")
-        opcion = input("Selecciona una opción: ")
-        if opcion == '1':
-            tamanio = input("Seleccione el tamaño de clave Kyber: (1) 512, (2) 768 o (3) 1024:")
-
-            ruta_archivo_cifrado = filedialog.asksaveasfilename(defaultextension=".pem",
-                                                        initialfile="public",
-                                                        filetypes=[("Archivos pem", "*.pem"),("Todos los archivos", "*.*")])
-            crear_kyber(ruta_archivo_cifrado, tamanio) #Creamos las claves pública y privada en el mismo directorio que el archivo claves.bin
-
-        elif opcion == '2':
-            print("Necesitamos que nos facilite el archivo de claves")
-            ruta_archivo_cifrado = filedialog.askopenfilename(
-                title="Seleccionar archivo de claves",
-                filetypes=[("Todos los archivos", "*.bin")]
+        print("Necesitamos que nos facilite el archivo de claves")
+        ruta_archivo_cifrado = filedialog.askopenfilename(
+            title="Seleccionar archivo de claves",
+            filetypes=[("Todos los archivos", "*.bin")]
+        )
+        root = tk.Tk()
+        root.withdraw()  # Oculta la ventana principal de Tkinter
+        print("Necesitamos que nos facilite la clave publica para encriptar el archivo de claves")
+        ruta_archivo = filedialog.askopenfilename(
+                title="Seleccionar archivo",
+                filetypes=[("Todos los archivos", "*.pem")] #Seleccionamos donde queremos el archivo de clave publica
             )
-            root = tk.Tk()
-            root.withdraw()  # Oculta la ventana principal de Tkinter
-            print("Necesitamos que nos facilite la clave publica para encriptar el archivo de claves")
-            ruta_archivo = filedialog.askopenfilename(
-                    title="Seleccionar archivo",
-                    filetypes=[("Todos los archivos", "*.pem")] #Seleccionamos donde queremos el archivo de clave publica
-                )
-            if ruta_archivo:
-                    with open(ruta_archivo, "rb") as f:
-                        public_key = f.read() #Leemos su contenido y lo importamos como clave Kyber
-                        
-                    #Realizamos el proceso de reconstrucción para recuperar la clave en su formato util
-                    public_key = public_key.decode("utf-8")
-                    public_key = public_key.replace("----BEGIN PUBLIC KEY----","")
-                    public_key = public_key.replace("----END PUBLIC KEY----","")
-                    public_key = public_key.replace("\n","")
-                    public_key = base64.b64decode(public_key)
+        if ruta_archivo:
+                with open(ruta_archivo, "rb") as f:
+                    public_key = f.read() #Leemos su contenido y lo importamos como clave Kyber
+                    
+                #Realizamos el proceso de reconstrucción para recuperar la clave en su formato util
+                public_key = public_key.decode("utf-8")
+                public_key = public_key.replace("----BEGIN PUBLIC KEY----","")
+                public_key = public_key.replace("----END PUBLIC KEY----","")
+                public_key = public_key.replace("\n","")
+                public_key = base64.b64decode(public_key)
 
-                    #Dependiendo del taamaño de la clave, podemos averiguar que tipo de kyber se utilizó a la hora de crear las claves
-                    with open(ruta_archivo_cifrado, "rb") as f:
-                        datos = f.read()
-                    if len(public_key) == 800:
-                        kyberobject = Kyber512
-                    elif len(public_key) == 1184:
-                        kyberobject = Kyber768
-                    elif len(public_key) == 1568:
-                        kyberobject = Kyber1024
-                        
-                    tamanio = 32
-                    datos_cifrados = []
-                    #Al ser mensajes demasiado grandes para el encriptador, dividimos el mensaje en mensajes del tamaño útil de kyber
-                    for i in range(0, len(datos), tamanio):
-                        bloque = datos[i:i+tamanio]
-                        bloque = bloque.ljust(tamanio, b'\0')
-                        datos_cifrados.append(kyberobject._cpapke_enc(public_key, bloque, tamanio.to_bytes(32, byteorder='big')))
-                    #Unificamos todos los bloques del mensaje en uno solo, obteniendo así el archivo de claves encriptado.
-                    encrypted_data = b''.join(datos_cifrados)
-            
-                    with open(ruta_archivo_cifrado, "wb") as f:
-                        f.write(encrypted_data)
-                    break
-            else:
-                print("No ha seleccionado ningún archivo")
-        elif opcion == '3':
-            break
-        else:
-            print("Opción no válida. Inténtalo de nuevo.")
+                #Dependiendo del taamaño de la clave, podemos averiguar que tipo de kyber se utilizó a la hora de crear las claves
+                with open(ruta_archivo_cifrado, "rb") as f:
+                    datos = f.read()
+                if len(public_key) == 800:
+                    kyberobject = Kyber512
+                elif len(public_key) == 1184:
+                    kyberobject = Kyber768
+                elif len(public_key) == 1568:
+                    kyberobject = Kyber1024
+                    
+                tamanio = 32
+                datos_cifrados = []
+                #Al ser mensajes demasiado grandes para el encriptador, dividimos el mensaje en mensajes del tamaño útil de kyber
+                for i in range(0, len(datos), tamanio):
+                    bloque = datos[i:i+tamanio]
+                    bloque = bloque.ljust(tamanio, b'\0')
+                    datos_cifrados.append(kyberobject._cpapke_enc(public_key, bloque, tamanio.to_bytes(32, byteorder='big')))
+                #Unificamos todos los bloques del mensaje en uno solo, obteniendo así el archivo de claves encriptado.
+                encrypted_data = b''.join(datos_cifrados)
+        
+                with open(ruta_archivo_cifrado, "wb") as f:
+                    f.write(encrypted_data)
+                break
 
 def desencriptar_kyber(ruta_archivo_cifrado):
     print("Necesitamos que nos facilite la clave privada para desencriptar el archivo de claves")
@@ -301,16 +267,8 @@ def desencriptar_kyber(ruta_archivo_cifrado):
                 with open(ruta_archivo_cifrado, "rb") as f:
                     datos = f.read() #Leemos el archivo de claves.bin 
                     
-                #Dependiendo del tamaño de la clave se deduce con qué tamaño de clave kyber estamos trabajando, y se le asigna el tamaño de bloque
-                if len(private_key) == 1632:
                     kyberobject = Kyber512
                     tamanio = 768
-                elif len(private_key) == 2400:
-                    kyberobject = Kyber768
-                    tamanio = 1088
-                elif len(private_key) == 3168:
-                    kyberobject = Kyber1024
-                    tamanio = 1568
                     
                 datos_descifrados = []
             
@@ -329,26 +287,18 @@ def desencriptar_kyber(ruta_archivo_cifrado):
                     f.write(dencrypted_data)
                 break
 
-def crear_RSA(ruta_archivo_cifrado, clave_tamaño):
-    if clave_tamaño == "1":
-        print("Creando clave RSA con 2048 bits")
-        key = RSA.generate(2048)
-        private_key = key.export_key()
-        public_key = key.publickey().export_key()
-    elif clave_tamaño == "2":
-        print("Creando clave RSA con 4096 bits")
-        key = RSA.generate(4096)
-        private_key = key.export_key()
-        public_key = key.publickey().export_key()
-    else:
-        print("Selección por defecto de creación de clave RSA de 2048")
-        key = RSA.generate(2048)
-        private_key = key.export_key()
-        public_key = key.publickey().export_key()
+def crear_RSA():
+   
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
+    user_directory = os.path.join("practica4", usuario)
+    ruta_privada = os.path.normpath(os.path.join(user_directory, "private_rsa.pem"))
+    ruta_publica = os.path.normpath(os.path.join(user_directory, "public_rsa.pem"))
 
-    ruta_cortada = os.path.dirname(ruta_archivo_cifrado)
-    ruta_privada = os.path.normpath(os.path.join(ruta_cortada, "private_rsa.pem"))
-    ruta_publica = os.path.normpath(os.path.join(ruta_cortada, "public_rsa.pem"))
+    if os.path.exists(ruta_privada) and os.path.exists(ruta_publica):
+        messagebox.showerror("Error", "Las claves pública y privada ya existen.")
+        return
     
     with open(ruta_privada, "wb") as f:
         f.write(private_key)
@@ -396,7 +346,7 @@ def encriptar_claves():
             ruta_archivo_cifrado = filedialog.asksaveasfilename(defaultextension=".bin",
                                                         initialfile="public_rsa",
                                                         filetypes=[("Archivos PEM", "*.pem"),("Todos los archivos", "*.*")])
-            crear_RSA(ruta_archivo_cifrado, tamanio) #Creamos las claves pública y privada en el mismo directorio que el archivo claves.bin
+            crear_RSA(ruta_archivo_cifrado) #Creamos las claves pública y privada en el mismo directorio que el archivo claves.bin
 
         elif opcion == '2':
             messagebox.showinfo("Información", "Necesitamos que nos facilite el archivo de claves")
@@ -437,8 +387,17 @@ def encriptar_claves():
         else:
             messagebox.showerror("Error", "Opción no válida. Inténtalo de nuevo.")
 
-def salir_app():
-    ventana.quit()
+def crear_clave():
+    def seleccionar_metodo():
+        metodo = tk.simpledialog.askstring("Seleccionar método", "¿Qué método de creación de claves desea usar?\n1. RSA\n2. Kyber")
+        if metodo == '1':
+            crear_RSA()
+        elif metodo == '2':
+            crear_kyber()
+        else:
+            messagebox.showerror("Error", "Opción no válida. Inténtalo de nuevo.")
+
+    seleccionar_metodo()
 
 def cargar_claves():
     global ruta_archivo            
@@ -456,18 +415,24 @@ def cargar_claves():
                 ruta_claves = ""
         else:
             messagebox.showinfo("Información", "No se seleccionó ningún archivo. Crearemos un archivo de claves nuevo...")
-            ruta_claves = filedialog.asksaveasfilename(defaultextension=".bin",
-                                                        initialfile="claves",
-                                                        filetypes=[("Archivos BIN", "*.bin"),("Todos los archivos", "*.*")])
+            ruta_claves = os.path.join("practica4", "claves.bin")
             if ruta_claves:
                 with open(ruta_claves, 'wb') as f:
                     pass
+
+def salir_login():
+    ventana.destroy()
+    global usuario, contrasena
+    usuario = ""
+    contrasena = ""
+    login()
 
 def login():
     def registrar_usuario():
         def guardar_usuario():
             nuevo_usuario = entry_nuevo_usuario.get()
             nueva_contrasena = entry_nueva_contrasena.get()
+
             try:
                 with open("practica4/usuarios.txt", "r") as f:
                     usuarios = f.readlines()
@@ -480,6 +445,10 @@ def login():
                                 return
             except FileNotFoundError:
                 pass
+
+            user_directory = os.path.join("practica4", nuevo_usuario)
+            if not os.path.exists(user_directory):
+                os.makedirs(user_directory)
 
             with open("practica4/usuarios.txt", "a") as f:
                 f.write(f"{nuevo_usuario},{nueva_contrasena}\n")
@@ -593,10 +562,16 @@ boton_seleccionar.pack(expand=True)
 boton_cifrar = tk.Button(ventana, text="Archivo de claves", command=cargar_claves)
 boton_cifrar.pack(expand=True)
 
+boton_cifrar = tk.Button(ventana, text="Crear clave", command=crear_clave)
+boton_cifrar.pack(expand=True)
+
 boton_cifrar = tk.Button(ventana, text="Cifrar Archivo", command=cifrar_archivo)
 boton_cifrar.pack(expand=True)
 
 boton_descifrar = tk.Button(ventana, text="Descifrar Archivo", command=descifrar_archivo)
+boton_descifrar.pack(expand=True)
+
+boton_descifrar = tk.Button(ventana, text="Logout", command=salir_login)
 boton_descifrar.pack(expand=True)
 
 boton_salir = tk.Button(ventana, text="Salir de la aplicación", command=salir_app)
