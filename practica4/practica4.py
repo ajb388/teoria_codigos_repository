@@ -10,6 +10,7 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 from tkinter import filedialog, messagebox
+import sys
 
 # Variables globales
 lista_claves = {}
@@ -17,6 +18,8 @@ ruta_archivo = ""
 ruta_salida = ""
 ruta_claves = ""
 ruta_archivo = ""
+usuario = ""
+contrasena = ""
 
 def seleccionar_archivos():
     # Abre un diálogo para seleccionar uno o varios archivos
@@ -109,11 +112,11 @@ def cifrar_archivo():
     with open(ruta_salida, 'wb') as f:
         f.write(iv)           # Guardar el IV (16 bytes)
         f.write(ciphertext)    # Guardar el texto cifrado
-    global ruta_claves
     guardar_clave(nombre_archivo, clave, extension)
     print(f"Archivo cifrado guardado en {ruta_salida}")       
 
 def descifrar_archivo():
+    global lista_claves
     lista_claves = leer_claves(ruta_claves)
     with open(ruta_archivo, 'rb') as f:
         iv = f.read(16)        # Leer el IV (16 bytes)
@@ -148,6 +151,7 @@ def descifrar_archivo():
 
 def guardar_clave(nombre, clave, extension):
     global lista_claves
+    global ruta_claves
     lista_claves = leer_claves(ruta_claves)
     if nombre in lista_claves:
         lista_claves[nombre] = (clave, extension)
@@ -459,13 +463,129 @@ def cargar_claves():
                 with open(ruta_claves, 'wb') as f:
                     pass
 
+def login():
+    def registrar_usuario():
+        def guardar_usuario():
+            nuevo_usuario = entry_nuevo_usuario.get()
+            nueva_contrasena = entry_nueva_contrasena.get()
+            try:
+                with open("practica4/usuarios.txt", "r") as f:
+                    usuarios = f.readlines()
+                    for usuario_linea in usuarios:
+                        if "," in usuario_linea:
+                            usuario_guardado, _ = usuario_linea.strip().split(",")
+                            if nuevo_usuario == usuario_guardado:
+                                messagebox.showerror("Error", "El usuario ya existe")
+                                registro_ventana.destroy()
+                                return
+            except FileNotFoundError:
+                pass
+
+            with open("practica4/usuarios.txt", "a") as f:
+                f.write(f"{nuevo_usuario},{nueva_contrasena}\n")
+            messagebox.showinfo("Registro", "Usuario registrado con éxito")
+            registro_ventana.destroy()
+
+        registro_ventana = tk.Tk()
+        registro_ventana.title("Registrar Usuario")
+        registro_ventana.geometry("400x200")
+
+        label_nuevo_usuario = tk.Label(registro_ventana, text="Nuevo Usuario:")
+        label_nuevo_usuario.pack(pady=5)
+        entry_nuevo_usuario = tk.Entry(registro_ventana)
+        entry_nuevo_usuario.pack(pady=5)
+
+        label_nueva_contrasena = tk.Label(registro_ventana, text="Nueva Contraseña:")
+        label_nueva_contrasena.pack(pady=5)
+        entry_nueva_contrasena = tk.Entry(registro_ventana, show="*")
+        entry_nueva_contrasena.pack(pady=5)
+
+        boton_guardar = tk.Button(registro_ventana, text="Guardar", command=guardar_usuario)
+        boton_guardar.pack(pady=10)
+
+        registro_ventana.mainloop()
+
+    def verificar_credenciales():
+        global usuario
+        usuario = entry_usuario.get()
+        global contrasena
+        contrasena = entry_contrasena.get()
+        try:
+            with open("practica4/usuarios.txt", "r") as f:
+                usuarios = f.readlines()
+                usuario_encontrado = False
+                for usuario_linea in usuarios:
+                    if "," in usuario_linea:
+                        usuario_guardado, contrasena_guardada = usuario_linea.strip().split(",")
+                    if usuario == usuario_guardado and contrasena == contrasena_guardada:
+                        messagebox.showinfo("Login Exitoso", "Has iniciado sesión con éxito")
+                        usuario_encontrado = True
+                        login_ventana.destroy()
+                if usuario_encontrado == False:
+                    messagebox.showerror("Error", "Credenciales incorrectas")   
+        except FileNotFoundError:
+            messagebox.showerror("Error", "Archivo de usuarios no encontrado")
+                     
+
+
+    login_ventana = tk.Tk()
+    login_ventana.title("Login")
+    login_ventana.geometry("600x300")
+
+    label_usuario = tk.Label(login_ventana, text="Usuario:")
+    label_usuario.pack(pady=5)
+    entry_usuario = tk.Entry(login_ventana)
+    entry_usuario.pack(pady=5)
+
+    label_contrasena = tk.Label(login_ventana, text="Contraseña:")
+    label_contrasena.pack(pady=5)
+    entry_contrasena = tk.Entry(login_ventana, show="*")
+    entry_contrasena.pack(pady=5)
+
+    boton_login = tk.Button(login_ventana, text="Login", command=verificar_credenciales)
+    boton_login.pack(pady=10)
+
+    boton_login = tk.Button(login_ventana, text="Registrar", command=registrar_usuario)
+    boton_login.pack(pady=10)
+
+    login_ventana.mainloop()
+
+    if not usuario or not contrasena:
+        messagebox.showerror("Error", "No se ha proporcionado usuario o contraseña. El programa se cerrará.")
+        sys.exit()
+
+login()
+
+
+
 ventana = tk.Tk()
 ventana.title("Encriptación de PDFs")
-ventana.geometry("600x400")
+ventana.geometry("800x600")
 
 # Crear el menú principal
 menu_principal = tk.Menu(ventana)
 ventana.config(menu=menu_principal)
+
+# Crear un mensaje de bienvenida
+mensaje_bienvenida = tk.Label(ventana, text=f"Bienvenido, {usuario.upper()}!!", font=("Helvetica", 16, "bold"), fg="blue")
+mensaje_bienvenida.pack(pady=10)
+
+# Crear un frame para las instrucciones
+frame_instrucciones = tk.Frame(ventana)
+frame_instrucciones.pack(side=tk.RIGHT, padx=10, pady=10)
+
+# Crear un mensaje de instrucciones
+instrucciones = """
+Instrucciones:
+1. Seleccionar Archivos: Selecciona el archivo que deseas cifrar o descifrar.
+2. Archivo de claves: Carga o crea un archivo de claves.
+3. Cifrar Archivo: Cifra el archivo seleccionado.
+4. Descifrar Archivo: Descifra el archivo seleccionado.
+5. Salir de la aplicación: Cierra la aplicación.
+"""
+label_instrucciones = tk.Label(frame_instrucciones, text=instrucciones, justify=tk.LEFT, font=("Helvetica", 11, "bold"))
+label_instrucciones.pack()
+
 
 boton_seleccionar = tk.Button(ventana, text="Seleccionar Archivos", command=seleccionar_archivos)
 boton_seleccionar.pack(expand=True)
