@@ -20,6 +20,8 @@ ruta_claves = ""
 ruta_archivo = ""
 usuario = ""
 contrasena = ""
+    # Define el directorio base automáticamente
+directorio_base = os.path.join(os.path.dirname(__file__))
 
 def salir_app():
     ventana.quit()
@@ -426,8 +428,7 @@ def salir_login():
     usuario = ""
     contrasena = ""
     login()
-    # Define el directorio base automáticamente
-directorio_base = os.path.join(os.path.dirname(__file__), "practica4")
+
 
 def login():
     def registrar_usuario():
