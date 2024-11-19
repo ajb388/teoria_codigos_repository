@@ -491,6 +491,7 @@ def registrarUsuarioApp(nombre, contrasena):
     signature = pkcs1_15.new(private_app).sign(hash_object)
     encriptarPrivate_app()
     public_key_base64 = base64.b64encode(public_key).decode('utf-8')
+    
     #Creamos el certificado del usuario
     certificate = {
         "user": nombre,
@@ -550,20 +551,184 @@ def validarUsuario(certificado, contraseña):
             usuario = certificate["user"]
             for lista_user in lista_usuarios:
                 if lista_user["user"] == usuario:
-                    lista_user["signature"] == certificate["signature"]
-                    private_key_base64 = lista_user["private_key"]
-                    private_key = base64.b64decode(private_key_base64)
+                    try:
+                        public_key_user_base64 = certificate['public_key']
+                        public_key_user = base64.b64decode(public_key_user_base64)
 
-                    salt = private_key[:16]
-                    iv = private_key[16:32]
-                    ciphertext = private_key[32:]
-                    derived_key = PBKDF2(contraseña, salt, dkLen=32)
-                    cipher = AES.new(derived_key, AES.MODE_CBC, iv)
-                    private_key = unpad(cipher.decrypt(ciphertext), AES.block_size)
+                        comprobante = certificate['user'] + " " + public_key_user.decode('utf-8')
+                        hash_comprobante = SHA256.new(comprobante.encode('utf-8'))
 
-                    usuario = certificate["user"]
-                    contrasena = contraseña
+                        public_app_comp = RSA.import_key(public_app)
+                        certif=bytes.fromhex(certificate['signature'])
+                        pkcs1_15.new(public_app_comp).verify(hash_comprobante,certif)
+                    
+                        lista_user["signature"] == certificate["signature"]
+
+
+                        private_key_base64 = lista_user["private_key"]
+                        private_key = base64.b64decode(private_key_base64)
+
+
+                        salt = private_key[:16]
+                        iv = private_key[16:32]
+                        ciphertext = private_key[32:]
+                        derived_key = PBKDF2(contraseña, salt, dkLen=32)
+                        cipher = AES.new(derived_key, AES.MODE_CBC, iv)
+                        private_key = unpad(cipher.decrypt(ciphertext), AES.block_size)
+
+                        usuario = certificate["user"]
+                        contrasena = contraseña
+                        print("Usuario validado")
+                        break
+                    except(ValueError,TypeError):
+                        print("Usuario no validado")
+                        break
+
+def listarUsuariosEncriptar():
+    lista_temporal = []
+    for usuario in lista_usuarios:
+        lista_temporal.append(usuario['user'])
+    return lista_temporal
+
+def verificarUsuarioSeleccionado(usuario):
+    leerUsuariosApp()
+    for user in lista_usuarios:
+        if user["user"] == usuario:
+                    try:
+                        public_key_user_base64 = user['public_key']
+                        public_key_user = base64.b64decode(public_key_user_base64)
+
+                        comprobante = user['user'] + " " + public_key_user.decode('utf-8')
+                        hash_comprobante = SHA256.new(comprobante.encode('utf-8'))
+
+                        public_app_comp = RSA.import_key(public_app)
+                        certif=bytes.fromhex(user['signature'])
+                        pkcs1_15.new(public_app_comp).verify(hash_comprobante,certif)
+
+                        print("Usuario validado")
+                        break
+                    except (ValueError, TypeError):
+                        print("Usuario no validado")
+                        break
+
+def encriptarArchivosUsers(lista_usuarios_encriptan, lista_rutas_archivos, rutasalida):
+    leerUsuariosApp()
+    lista_claves_cifradas = {}
+    ruta_salida_cortada = os.path.dirname(rutasalida)
+    for archivo in lista_rutas_archivos:
+        nombre_archivo, extension = os.path.splitext(os.path.basename(archivo))
+        with open(archivo, 'rb') as file:
+            datos = file.read()
+
+        clave = get_random_bytes(32)
+        cipher_aes = AES.new(clave, AES.MODE_CBC)
+        datos_pad = pad(datos,AES.block_size)
+        texto_cifrado = cipher_aes.encrypt(datos_pad)
+        datos_cifrados = cipher_aes.iv + texto_cifrado
+
+        for user1 in lista_usuarios_encriptan:
+            for user2 in lista_usuarios:
+                if user2['user'] == user1:
+                    public_key_base64 = user2['public_key']
+                    public_key_bytes = base64.b64decode(public_key_base64)
+                    public_key = RSA.import_key(public_key_bytes)
+                    cipher = PKCS1_OAEP.new(public_key)
+                    clave_user = cipher.encrypt(clave)
+                    lista_claves_cifradas[user2['user']] = clave_user
+        rutasalida2 = os.path.normpath(os.path.join(ruta_salida_cortada, f"{nombre_archivo}.bin"))
+        with open(rutasalida2, 'wb') as f:
+            for user in lista_claves_cifradas:
+                nombre_bytes = user.encode('utf-8')
+                f.write(len(nombre_bytes).to_bytes(1,'big'))
+                f.write(nombre_bytes)
+
+                clave_bytes = lista_claves_cifradas[user]
+                f.write(len(clave_bytes).to_bytes(2,'big'))
+                f.write(clave_bytes)
+
+            f.write(b'\x00')
+            extension_bytes = extension.encode('utf-8')
+            f.write(len(extension_bytes).to_bytes(1,'big'))
+            f.write(extension_bytes)
+
+            nombre_archivo_bytes = nombre_archivo.encode('utf-8')
+            f.write(len(nombre_archivo_bytes).to_bytes(1,'big'))
+            f.write(nombre_archivo_bytes)
+
+            f.write(datos_cifrados)
+
+def desencriptarArchivosUsers(lista_rutas_archivos, rutasalida):
+    leerUsuariosApp()
+    ruta_salida_cortada = os.path.dirname(rutasalida)
+    for archivo in lista_rutas_archivos:
+        lista_claves_cifradas = {}
+        with open (archivo, 'rb') as file:
+            lista_claves_cifradas = {}
+            while True:
+
+                len_nombre = int.from_bytes(file.read(1),'big')
+                if len_nombre == 0:
                     break
+                nombre_usuario = file.read(len_nombre).decode('utf-8')
+
+                len_clave = int.from_bytes(file.read(2),'big')
+                clave_cifrada = file.read(len_clave)
+
+                lista_claves_cifradas[nombre_usuario] = clave_cifrada
+
+                separador = file.read(1)
+                if separador == b'\x00':
+                    break
+                else:
+                    file.seek(-1, os.SEEK_CUR)
+
+            
+            len_extension = int.from_bytes(file.read(1),'big')
+            extension = file.read(len_extension).decode('utf-8')
+            len_nombre_archivo = int.from_bytes(file.read(1),'big')
+            nombre_archivo = file.read(len_nombre_archivo).decode('utf-8')
+
+            datos_cifrados = file.read()
+            iv_aes = datos_cifrados[:16]
+            datos = datos_cifrados[16:]
+
+            for user in lista_claves_cifradas:
+                for user2 in lista_usuarios:
+                    if user == usuario == user2['user']:
+                        clave = lista_claves_cifradas[user]
+                        private_key_base64 = user2['private_key']
+                        private_key = base64.b64decode(private_key_base64)
+                        #para la clave privada del usuario
+                        salt = private_key[:16]
+                        iv = private_key[16:32]
+                        ciphertext = private_key[32:]
+                        derived_key = PBKDF2(contrasena, salt, dkLen=32)
+                        cipher_aes = AES.new(derived_key, AES.MODE_CBC, iv)
+                        private_key = unpad(cipher_aes.decrypt(ciphertext), AES.block_size)
+                        private_key_rsa = RSA.import_key(private_key)
+                        cipher_rsa = PKCS1_OAEP.new(private_key_rsa)
+                        clave_descifrada = cipher_rsa.decrypt(clave)
+
+                        #para la clave aes del archivo
+                        cipher_aes = AES.new(clave_descifrada, AES.MODE_CBC, iv_aes)
+                        texto_descifrado = unpad(cipher_aes.decrypt(datos),AES.block_size)
+                        
+                        rutasalida2 = os.path.normpath(os.path.join(ruta_salida_cortada, f"{nombre_archivo}{extension}"))
+                        with open (rutasalida2, 'wb') as file:
+                            file.write(texto_descifrado)
+                        print("Usuario validado para desencriptar")
+                        
+ 
+                
+            #print(lista_claves_cifradas)
+            #print(extension)
+            #print(nombre_archivo)
+            #print(iv)
+            #print(datos_cifrados)
+
+
+
+
 
 def salir_login():
     ventana.destroy()
@@ -668,9 +833,19 @@ def login():
 
     # Ventana de login
     crearClavesAplicacion()
-    registrarUsuarioApp("adrian","prueba2")
+    #registrarUsuarioApp("adrian","prueba2")
     #leerUsuariosApp()
-    validarUsuario(os.path.join(directorio_base, f"certificate_david.json"), "prueba2")
+    validarUsuario(os.path.join(directorio_base, f"certificate_adrian.json"), "prueba2")
+    #lista = listarUsuariosEncriptar()
+    #verificarUsuarioSeleccionado("adrian")
+    lista_a_encriptar = ["david", "adrian"]
+    lista_archivos = {os.path.join(directorio_base, "usuarios.txt"), os.path.join(directorio_base, "usuarios2.txt")}
+    ruta_out = os.path.join(directorio_base, "usuarios.bin")
+    lista_ruta_encriptados = {os.path.join(directorio_base, "usuarios.bin"), os.path.join(directorio_base, "usuarios2.bin")}
+    ruta_out2 = os.path.join(directorio_base, "usuarios.bin")
+    encriptarArchivosUsers(lista_a_encriptar, lista_archivos, ruta_out)
+    desencriptarArchivosUsers(lista_ruta_encriptados, ruta_out2)
+
 
     login_ventana = tk.Tk()
     login_ventana.title("Login")
