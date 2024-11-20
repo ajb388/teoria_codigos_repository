@@ -745,16 +745,11 @@ def login():
             nuevo_usuario = entry_nuevo_usuario.get()
             nueva_contrasena = entry_nueva_contrasena.get()
 
-            metodo = opcion_seleccionada.get()
-            if metodo == "RSA":
-                metodo = 0
-                print("Se va a crear RSA")
-            elif metodo == "KYBER":
-                metodo = 1
-                print("Se va a crear Kyber")
-            else:
-                messagebox.showerror("Error", "Debe seleccionar un método.")
+            if(len(nuevo_usuario) == 0 or len(nueva_contrasena) == 0):
+                messagebox.showerror("Error", "Debe proporcionar un usuario y una contraseña.")
                 return
+
+            metodo = opcion_seleccionada.get()
             
             registrarUsuarioApp(nuevo_usuario, nueva_contrasena, metodo)
 
@@ -779,12 +774,13 @@ def login():
         label_metodo = tk.Label(registro_ventana, text="Seleccione el tipo de cifrado:")
         label_metodo.pack(pady=5)
 
-        opcion_seleccionada = tk.StringVar(value="")
-        check_rsa = tk.Radiobutton(registro_ventana,text="RSA",variable=opcion_seleccionada,value="RSA")
-        check_rsa.pack(pady=5)
+        opcion_seleccionada = tk.IntVar(value=0)
 
-        check_kyber = tk.Radiobutton(registro_ventana,text="Kyber",variable=opcion_seleccionada,value="KYBER")
-        check_kyber.pack(pady=5)
+        radiobutton_rsa = tk.Radiobutton(registro_ventana, text="RSA", variable=opcion_seleccionada, value=0)
+        radiobutton_rsa.pack(pady=5)
+
+        radiobutton_kyber = tk.Radiobutton(registro_ventana, text="Kyber", variable=opcion_seleccionada, value=1)
+        radiobutton_kyber.pack(pady=5)
 
         boton_guardar = tk.Button(registro_ventana, text="Guardar", command=guardar_usuario)
         boton_guardar.pack(pady=15)
