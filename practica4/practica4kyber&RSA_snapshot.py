@@ -415,7 +415,10 @@ def validarUsuario(contraseña):
         else:
             leerUsuariosApp()
             certificate = json.loads(certificate)
-            usuario = certificate["user"]
+            try:
+                usuario = certificate["user"]
+            except TypeError:
+                return
 
             for lista_user in lista_usuarios:
                 if lista_user["user"] == usuario:
@@ -598,6 +601,8 @@ def desencriptarArchivosUsers(lista_rutas_archivos):
     user_directory = os.path.join(directorio_base, usuario)
     ruta_salida_cortada = os.path.normpath(user_directory)
     for archivo in lista_rutas_archivos:
+        if not archivo.lower().endswith('.bin'):
+            continue 
         lista_claves_cifradas = {}
         with open (archivo, 'rb') as file:
             lista_claves_cifradas = {}
