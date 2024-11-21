@@ -1,12 +1,13 @@
 import os
 import tkinter as tk
+import customtkinter as ctk
+from PIL import Image
 import base64
 import json
 from hashlib import sha256
 from kyber.kyber import Kyber512, Kyber768, Kyber1024
 from Crypto.Hash import SHA256
 from tkinter import filedialog
-from Crypto.Signature import pkcs1_15
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
 from Crypto.Cipher import PKCS1_OAEP
@@ -695,50 +696,31 @@ def cifrar_archivo():
         usuarios = listarUsuariosEncriptar()
         seleccionados = []
 
-        def agregar_usuario():
-            usuario_seleccionado = lista_usuarios.get(tk.ACTIVE)
-            if usuario_seleccionado and usuario_seleccionado not in seleccionados:
-                seleccionados.append(usuario_seleccionado)
-                lista_seleccionados.insert(tk.END, usuario_seleccionado)
-                verificarUsuarioSeleccionado(usuario_seleccionado)
-
-        def eliminar_usuario():
-            usuario_seleccionado = lista_seleccionados.get(tk.ACTIVE)
-            if usuario_seleccionado in seleccionados:
-                seleccionados.remove(usuario_seleccionado)
-                lista_seleccionados.delete(tk.ACTIVE)
-
-        def confirmar_seleccion():
-            if seleccionados:
-                seleccionar_usuarios_ventana.destroy()
-                encriptarArchivosUsers(seleccionados, ruta_archivo)
-            else:
-                messagebox.showerror("Error", "Debe seleccionar al menos un usuario.")
-
-        seleccionar_usuarios_ventana = tk.Tk()
+        seleccionar_usuarios_ventana = ctk.CTk()
         seleccionar_usuarios_ventana.title("Seleccionar Usuarios")
-        seleccionar_usuarios_ventana.geometry("1000x700")
+        ctk.set_appearance_mode("dark")        
+        seleccionar_usuarios_ventana.scrollable_frame = ctk.CTkScrollableFrame(seleccionar_usuarios_ventana, label_text="Lista de usuarios")
+        seleccionar_usuarios_ventana.scrollable_frame.grid(row=1, column=2, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        seleccionar_usuarios_ventana.scrollable_frame.grid_columnconfigure(0, weight=1)
+        seleccionar_usuarios_ventana.scrollable_frame_switches = []
+        
+        for i in range(len(usuarios)):
+            switch = ctk.CTkSwitch(seleccionar_usuarios_ventana.scrollable_frame, text=usuarios[i])
+            switch.grid(row=i, column=0, padx=10, pady=(0, 20))
+            seleccionar_usuarios_ventana.scrollable_frame_switches.append(switch)
 
-        label_usuarios = tk.Label(seleccionar_usuarios_ventana, text="Usuarios Disponibles:")
-        label_usuarios.pack(pady=5)
-        lista_usuarios = tk.Listbox(seleccionar_usuarios_ventana)
-        lista_usuarios.pack(pady=5, fill=tk.BOTH, expand=True)
-        for usuario in usuarios:
-            lista_usuarios.insert(tk.END, usuario)
+        def guardar_seleccion():
+            seleccionados.clear()
+            for switch in seleccionar_usuarios_ventana.scrollable_frame_switches:
+                if switch.get():
+                    seleccionados.append(switch.cget("text"))
+                    print(seleccionados)
+            seleccionar_usuarios_ventana.destroy()
+            encriptarArchivosUsers(seleccionados, ruta_archivo)
 
-        boton_agregar = tk.Button(seleccionar_usuarios_ventana, text="Agregar", command=agregar_usuario)
-        boton_agregar.pack(pady=5)
+        boton_aceptar = ctk.CTkButton(seleccionar_usuarios_ventana, text="Aceptar", command=guardar_seleccion)
+        boton_aceptar.grid(row=2, column=2, padx=10, pady=10)
 
-        label_seleccionados = tk.Label(seleccionar_usuarios_ventana, text="Usuarios Seleccionados:")
-        label_seleccionados.pack(pady=5)
-        lista_seleccionados = tk.Listbox(seleccionar_usuarios_ventana)
-        lista_seleccionados.pack(pady=5, fill=tk.BOTH, expand=True)
-
-        boton_eliminar = tk.Button(seleccionar_usuarios_ventana, text="Eliminar", command=eliminar_usuario)
-        boton_eliminar.pack(pady=5)
-
-        boton_confirmar = tk.Button(seleccionar_usuarios_ventana, text="Confirmar", command=confirmar_seleccion)
-        boton_confirmar.pack(pady=10)
 
         seleccionar_usuarios_ventana.mainloop()
 
@@ -762,40 +744,42 @@ def login():
             registro_ventana.destroy()
 
         # Crear ventana para el registro
-        registro_ventana = tk.Tk()
+        registro_ventana = ctk.CTk()
         registro_ventana.title("Registrar Usuario")
         registro_ventana.geometry("400x300")
+        ctk.set_appearance_mode("dark")
 
-        label_nuevo_usuario = tk.Label(registro_ventana, text="Nuevo Usuario:")
+
+        label_nuevo_usuario = ctk.CTkLabel(registro_ventana, text="Nuevo Usuario:")
         label_nuevo_usuario.pack(pady=5)
-        entry_nuevo_usuario = tk.Entry(registro_ventana)
+        entry_nuevo_usuario = ctk.CTkEntry(registro_ventana)
         entry_nuevo_usuario.pack(pady=5)
 
-        label_nueva_contrasena = tk.Label(registro_ventana, text="Nueva Contraseña:")
+        label_nueva_contrasena = ctk.CTkLabel(registro_ventana, text="Nueva Contraseña:")
         label_nueva_contrasena.pack(pady=5)
-        entry_nueva_contrasena = tk.Entry(registro_ventana, show="*")
+        entry_nueva_contrasena = ctk.CTkEntry(registro_ventana, show="*")
         entry_nueva_contrasena.pack(pady=5)
 
-        label_metodo = tk.Label(registro_ventana, text="Seleccione el tipo de cifrado:")
+        label_metodo = ctk.CTkLabel(registro_ventana, text="Seleccione el tipo de cifrado:")
         label_metodo.pack(pady=5)
 
-        opcion_seleccionada = tk.IntVar(value=0)
+        opcion_seleccionada = ctk.IntVar(value=0)
 
-        radiobutton_rsa = tk.Radiobutton(registro_ventana, text="RSA", variable=opcion_seleccionada, value=0)
+        radiobutton_rsa = ctk.CTkRadioButton(registro_ventana, text="RSA", variable=opcion_seleccionada, value=0)
         radiobutton_rsa.pack(pady=5)
 
-        radiobutton_kyber = tk.Radiobutton(registro_ventana, text="Kyber", variable=opcion_seleccionada, value=1)
+        radiobutton_kyber = ctk.CTkRadioButton(registro_ventana, text="Kyber", variable=opcion_seleccionada, value=1)
         radiobutton_kyber.pack(pady=5)
 
-        boton_guardar = tk.Button(registro_ventana, text="Guardar", command=guardar_usuario)
+        boton_guardar = ctk.CTkButton(registro_ventana, text="Guardar", command=guardar_usuario)
         boton_guardar.pack(pady=15)
 
         registro_ventana.mainloop()
 
-
-    login_ventana = tk.Tk()
-    login_ventana.title("Login")
-    login_ventana.geometry("600x300")
+    def recoger_contrasena():
+        contrasena = entry_contrasena.get()
+        validarUsuario(contrasena)
+        login_ventana.destroy()
     
     def seleccionar_certificado():
         global certificado
@@ -803,26 +787,25 @@ def login():
             title="Seleccionar certificado",
             filetypes=[("Archivos JSON", "*.json")]
         )
-        
 
-    
-    boton_seleccionar_certificado = tk.Button(login_ventana, text="Seleccionar Certificado", command=seleccionar_certificado)
+    login_ventana = ctk.CTk()
+    login_ventana.title("Login")
+    login_ventana.geometry("600x300")
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("green")
+
+    boton_seleccionar_certificado = ctk.CTkButton(login_ventana, text="Seleccionar Certificado", command=seleccionar_certificado)
     boton_seleccionar_certificado.pack(pady=10)
 
-    label_contrasena = tk.Label(login_ventana, text="Contraseña:")
+    label_contrasena = ctk.CTkLabel(login_ventana, text="Contraseña:")
     label_contrasena.pack(pady=5)
-    entry_contrasena = tk.Entry(login_ventana, show="*")
+    entry_contrasena = ctk.CTkEntry(login_ventana, show="*")
     entry_contrasena.pack(pady=5)
 
-    def recoger_contrasena():
-        contrasena = entry_contrasena.get()
-        validarUsuario(contrasena)
-        login_ventana.destroy()
-
-    boton_login = tk.Button(login_ventana, text="Login", command=recoger_contrasena)
+    boton_login = ctk.CTkButton(login_ventana, text="Login", command=recoger_contrasena)
     boton_login.pack(pady=10)
 
-    boton_registrar = tk.Button(login_ventana, text="Registrar", command=registrar_usuario)
+    boton_registrar = ctk.CTkButton(login_ventana, text="Registrar", command=registrar_usuario)
     boton_registrar.pack(pady=10)
 
     login_ventana.mainloop()
@@ -838,34 +821,45 @@ login()
 
 
 
-ventana = tk.Tk()
+ventana = ctk.CTk()
 ventana.title("Encriptación de PDFs")
 ventana.geometry("800x600")
 
+ctk.set_appearance_mode("dark")
 # Crear el menú principal
 menu_principal = tk.Menu(ventana)
 ventana.config(menu=menu_principal)
 
+
 # Crear un mensaje de bienvenida
-mensaje_bienvenida = tk.Label(ventana, text=f"Bienvenido, {usuario.upper()}!!", font=("Helvetica", 16, "bold"), fg="blue")
-mensaje_bienvenida.pack(pady=10)
+mensaje_bienvenida = ctk.CTkLabel(
+    ventana, 
+    text=f"Bienvenido, {usuario.upper()}!!", 
+    font=("Helvetica", 20, "bold"), 
+    text_color="#00BFFF", 
+    corner_radius=10, 
+    fg_color="#2E2E2E", 
+    bg_color="#1C1C1C", 
+    padx=20, 
+    pady=10
+)
+mensaje_bienvenida.pack(pady=20)
 
 # Crear un frame para las instrucciones
-frame_instrucciones = tk.Frame(ventana)
-frame_instrucciones.pack(side=tk.RIGHT, padx=10, pady=10)
+frame_archivos_seleccionados = ctk.CTkFrame(ventana)
+frame_archivos_seleccionados.pack(side=tk.RIGHT, padx=10, pady=10)
 
 
 # Crear un label para mostrar la lista de archivos seleccionados
-label_archivos_seleccionados = tk.Label(frame_instrucciones, text="No hay archivos seleccionados todavía", justify=tk.LEFT, font=("Helvetica", 11))
-
+label_archivos_seleccionados = ctk.CTkLabel(frame_archivos_seleccionados, text="No hay archivos seleccionados todavía", justify=ctk.LEFT, font=("Helvetica", 11))
 label_archivos_seleccionados.pack(pady=10)
 
 def actualizar_label_archivos():
     if ruta_archivo:
         archivos_seleccionados = "\n".join(ruta_archivo)
-        label_archivos_seleccionados.config(text=f"Archivos seleccionados:\n{archivos_seleccionados}")
+        label_archivos_seleccionados.configure(text=f"Archivos seleccionados:\n{archivos_seleccionados}")
     else:
-        label_archivos_seleccionados.config(text="No hay archivos seleccionados todavía")
+        label_archivos_seleccionados.configure(text="No hay archivos seleccionados todavía")
 
 # Modificar la función seleccionar_archivos para actualizar el label
 def seleccionar_archivos():
@@ -884,20 +878,21 @@ Instrucciones:
 3. Descifrar archivo: Descifra archivos si eres un usuario autorizado
 4. Salir de la aplicación: Cierra la aplicación.
 """
-label_instrucciones = tk.Label(frame_instrucciones, text=instrucciones, justify=tk.LEFT, font=("Helvetica", 11, "bold"))
-label_instrucciones.pack()
 
-boton_seleccionar = tk.Button(ventana, text="Seleccionar Archivos", command=seleccionar_archivos)
-boton_seleccionar.pack(expand=True)
+label_instrucciones = ctk.CTkLabel(frame_archivos_seleccionados, text=instrucciones, justify=ctk.LEFT, font=("Helvetica", 11, "bold"))
+label_instrucciones.pack(pady=30)
 
-boton_cifrar = tk.Button(ventana, text="Cifrar Archivo", command=cifrar_archivo)
-boton_cifrar.pack(expand=True)
+boton_seleccionar = ctk.CTkButton(ventana, text="Seleccionar Archivos", command=seleccionar_archivos)
+boton_seleccionar.pack(pady=30)
 
-boton_descifrar = tk.Button(ventana, text="Descifrar Archivo", command=descifrar_archivo)
-boton_descifrar.pack(expand=True)
+boton_cifrar = ctk.CTkButton(ventana, text="Cifrar Archivo", command=cifrar_archivo)
+boton_cifrar.pack(pady=30)
 
-boton_salir = tk.Button(ventana, text="Salir de la aplicación", command=salir_app)
-boton_salir.pack(expand=True)
+boton_descifrar = ctk.CTkButton(ventana, text="Descifrar Archivo", command=descifrar_archivo)
+boton_descifrar.pack(pady=30)
+
+boton_salir = ctk.CTkButton(ventana, text="Salir de la aplicación", command=salir_app)
+boton_salir.pack(pady=30)
 
 # Iniciar el loop de la aplicación
 ventana.mainloop()
